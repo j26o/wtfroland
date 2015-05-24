@@ -1,0 +1,19 @@
+// Variables
+@import "modules/print";
+
+// Reset and dependencies
+@import "modules/normalize";
+@import "modules/print";
+
+body {
+  font: 16px 'Raleway', Helvetica, Arial, sans-serif;
+  font-weight: 400;
+}
+
+a {
+  color: #00B7FF;
+}
+
+h1, h2, h3, h4 {
+	font-family: 'Gentium Basic', serif;
+}
