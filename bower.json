@@ -5,5 +5,9 @@
     "**/.*",
     "node_modules",
     "components"
-  ]
+  ],
+  "dependencies": {
+    "bourbon": "~4.2.3",
+    "neat": "~1.7.2"
+  }
 }

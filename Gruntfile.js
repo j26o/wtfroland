@@ -21,6 +21,12 @@ module.exports = function (grunt) {
       dist: {
         files: {
           'public/css/style.css': 'public/css/style.scss'
+        },
+        options: {
+          loadPath: [
+            'components/bourbon/dist',
+            'components/neat/app/assets/stylesheets'
+          ]
         }
       }
     },

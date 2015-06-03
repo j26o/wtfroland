@@ -1,19 +1,111 @@
-// Variables
-@import "modules/print";
-
 // Reset and dependencies
 @import "modules/normalize";
-@import "modules/print";
+
+// Icons
+@import "modules/icons";
 
 body {
-  font: 16px 'Raleway', Helvetica, Arial, sans-serif;
-  font-weight: 400;
+	font: 16px 'Raleway', Helvetica, Arial, sans-serif;
+	font-weight: 400;
+	color: #333;
 }
 
-a {
-  color: #00B7FF;
+a, :visited {
+	color: #333;
+	
+	&:hover, &:active{
+		opacity: 0.8;
+		text-decoration: underline;
+	}
 }
 
 h1, h2, h3, h4 {
 	font-family: 'Gentium Basic', serif;
+	margin:0;
+	padding:0;
+	line-height: 1.2em;
 }
+
+header {
+	position: relative;
+	text-align: center;
+	margin: 1.5em;
+
+	display: inline-block;
+}
+
+.wtf {
+	margin: 0 0 .2em 0;
+	letter-spacing: 0.03em;
+	
+	a, :hover {
+		text-decoration:none;
+		opacity: 1;
+	}
+}
+
+nav {
+	display: block;
+	text-align: left;
+
+	a {
+		text-align: left;
+		display: inline-block;
+		text-decoration: none;
+
+		width: 1em;
+		height: 1em;
+		margin-right: .5em;
+
+		span {
+			display: none;
+		}
+	}
+}
+
+footer {
+	position: fixed;
+	bottom:0;
+	right:2em;
+	font-size: .5em;
+}
+
+section {
+	margin: 1em;
+}
+
+#who {
+	display: block;
+	position: absolute;
+	left: 1em;
+	top: 6em;
+
+	width: 50%;
+	margin:0;
+	padding:1em;
+
+	background-color: rgba(0,0,0,0.1);
+}
+
+.social {
+	padding:0;
+	margin:0;
+	
+	li {
+		display: inline-block;
+		margin: 0 1em 0 0;
+
+		font-size: 1.5em;
+
+		a {
+			text-decoration: none;
+		}
+
+		span {
+			display: none;
+		}
+	}
+}
+
+@import "modules/helpers";
+@import "modules/print";
