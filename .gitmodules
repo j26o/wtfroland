@@ -1,0 +1,3 @@
+[submodule "public/lab/shout-box"]
+	path = public/lab/shout-box
+	url = https://github.com/wtfroland/shout-box.git
