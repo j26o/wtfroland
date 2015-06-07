@@ -374,7 +374,7 @@ th {
   box-sizing: border-box; }
 
 body {
-  font: 16px 'Raleway', Helvetica, Arial, sans-serif;
+  font: 16px 'Open Sans', Helvetica, Arial, sans-serif;
   font-weight: 400;
   color: #333; }
 
@@ -386,6 +386,7 @@ a, :visited {
 
 h1, h2, h3, h4 {
   font-family: 'Gentium Basic', serif;
+  font-weight: 400;
   margin: 0;
   padding: 0;
   line-height: 1em; }
@@ -399,8 +400,8 @@ header {
 .wtf {
   letter-spacing: 0.03em;
   border-bottom: 0.07em solid #333;
-  padding-bottom: 0.2em;
-  margin: 0 0 0.3em 0; }
+  padding-bottom: 0.04em;
+  margin: 0 0 0.2em 0; }
   .wtf a, .wtf :hover {
     text-decoration: none;
     opacity: 1; }

@@ -19,5 +19,5 @@ $(function() {
     	}
     });
 
-    lab.attr('src', 'lab/chat-app/');
+    lab.attr('src', 'lab/shout-box/www/');
 });
