@@ -7,9 +7,9 @@ module.exports = function (app) {
 };
 
 router.get('/', function (req, res, next) {
-  var articles = [new Article(), new Article()];
+	var articles = [new Article(), new Article()];
     res.render('index', {
-      title: 'wtfroland',
-      articles: articles
+      	title: 'wtfroland',
+      	articles: articles
     });
 });

@@ -1,0 +1,180 @@
+// Reset and dependencies
+@import "modules/normalize";
+
+// Icons
+@import "modules/icons";
+
+* {
+  	box-sizing: border-box;
+}
+
+body {
+	font: 16px 'Raleway', Helvetica, Arial, sans-serif;
+	font-weight: 400;
+	color: #333;
+}
+
+a, :visited {
+	color: #333;
+	
+	&:hover, &:active{
+		opacity: 0.8;
+		text-decoration: underline;
+	}
+}
+
+h1, h2, h3, h4 {
+	font-family: 'Gentium Basic', serif;
+	margin:0;
+	padding:0;
+	line-height: 1em;
+}
+
+header {
+	position: relative;
+	text-align: center;
+	margin: 1.5em;
+
+	display: inline-block;
+}
+
+.wtf {
+	letter-spacing: 0.03em;
+	border-bottom: 0.07em solid #333;
+
+	padding-bottom: 0.2em;
+	margin: 0 0 0.3em 0;
+	
+	a, :hover {
+		text-decoration:none;
+		opacity: 1;
+	}
+}
+
+nav {
+	display: block;
+	text-align: left;
+
+	a {
+		text-align: left;
+		display: inline-block;
+		text-decoration: none;
+
+		width: 1em;
+		height: 1em;
+		margin-right: .5em;
+
+		span {
+			display: none;
+		}
+	}
+}
+
+footer {
+	position: fixed;
+	bottom:0;
+	right:2em;
+	font-size: .5em;
+}
+
+section {
+	padding: 1.5em;
+
+	h1 {
+		border-bottom: 0.07em solid #333;
+		display: inline;
+	}
+}
+
+#lab {
+	position: absolute;
+	top: 0;
+	left: 0;
+
+	width: 100%;
+	height: 100%;
+
+	display: block;
+	z-index: -1;
+
+	background: none;
+	border: 0;
+}
+
+#who {
+	display: block;
+	position: fixed;
+	left: 0;
+	top: 0;
+
+	width: 24em;
+	height: 100%;
+	overflow-y: hidden;
+
+
+	background-color: #eee;
+
+	z-index: 9999;
+
+	-webkit-transform: translate(-27em, 0);
+	-moz-transform: translate(-27em, 0);
+	-ms-transform: translate(-27em, 0);
+	-o-transform: translate(-27em, 0);
+	transform: translate(-27em, 0);
+
+	transition: all ease-in-out 0.3s;
+
+	&.active {
+		-webkit-transform: translate(0, 0);
+		-moz-transform: translate(0, 0);
+		-ms-transform: translate(0, 0);
+		-o-transform: translate(0, 0);
+		transform: translate(0, 0);
+
+		overflow-y: scroll;
+	}
+}
+
+.close {
+	cursor: pointer;
+	position: absolute;
+	display: block;
+
+	top: 1.5em;
+	right: 1.5em;
+
+	transition: all ease-in-out 0.2s;
+
+	&:hover {
+		-webkit-transform: rotate(90deg);
+		-moz-transform: rotate(90deg);
+		-ms-transform: rotate(90deg);
+		-o-transform: rotate(90deg);
+		transform: rotate(90deg);
+
+		opacity: 0.8;
+	}
+}
+
+.social {
+	padding:0;
+	margin:0;
+
+	li {
+		display: inline-block;
+		margin: 0 1em 0 0;
+
+		font-size: 1.5em;
+
+		a {
+			text-decoration: none;
+		}
+
+		span {
+			display: none;
+		}
+	}
+}
+
+@import "modules/helpers";
+@import "modules/print";

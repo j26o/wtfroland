@@ -1,37 +1,41 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="description" content="This is a website that features random experiments on latest web technologies compiled by Roland Baldovino">
-  <meta name="author" content="roland.baldovino@gmail.com, @wtfroland">
-  <meta name="keywords" content="HTML, CSS, Web 2.0, web developer, actionscript developer, actionscript, design, adobe photoshop, photoshop designer, flex developer, adobe flex, flex builder, adobe flash, flash developer, actionscript developer, actionscript, actionscript 3.0, after effects, adobe after effects, motion graphics, animator, 3d animator, Freelance, Papervision, Papervision 3d, search engine optimization service, search engine optimization, manila, Manila, Philippines" />
+    <meta charset="UTF-8">
+    <meta name="description" content="This is a website that features random experiments on latest web technologies compiled by Roland Baldovino">
+    <meta name="author" content="roland.baldovino@gmail.com, @wtfroland">
+    <meta name="keywords" content="HTML, CSS, Web 2.0, web developer, actionscript developer, actionscript, design, adobe photoshop, photoshop designer, flex developer, adobe flex, flex builder, adobe flash, flash developer, actionscript developer, actionscript, actionscript 3.0, after effects, adobe after effects, motion graphics, animator, 3d animator, Freelance, Papervision, Papervision 3d, search engine optimization service, search engine optimization, manila, Manila, Philippines" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>{{title }}</title>
 
-  <title>{{title }}</title>
+    <link href='http://fonts.googleapis.com/css?family=Gentium+Basic|Raleway:400,600' rel='stylesheet' type='text/css'>
 
-  <link href='http://fonts.googleapis.com/css?family=Gentium+Basic|Raleway:400,600' rel='stylesheet' type='text/css'>
-
-  <link rel="stylesheet" href="/css/style.css">
-  {{#if ENV_DEVELOPMENT}}
+    <link rel="stylesheet" href="/css/style.css">
+    {{#if ENV_DEVELOPMENT}}
     <script src="http://localhost:35729/livereload.js"></script>
-  {{/if}}
+    {{/if}}
 </head>
 <body>
-  <header>
-    <h1 class="wtf"><a href="/">wtfroland</a></h1>
-    <nav>
-      <a href="/about/" class="who icon-happy"><span>about</span></a>
-      <a href="/labs/" class="what icon-lab"><span>lab</span></a>
-    </nav>
-  </header>
+    <header>
+        <h1 class="wtf"><a href="/">wtfroland</a></h1>
+        <nav id="nav">
+            <a href="/about/" class="who icon-happy"><span>about</span></a>
+            <a href="/lab/" class="what icon-lab"><span>lab</span></a>
+        </nav>
+    </header>
 
-  <div id="container">  
-    {{{body}}}
-  </div>
+    <div id="container">  
+        {{{body}}}
+    </div>
 
-  <footer>
-    <p>copyright &copy; 2015 <a href="mailto:roland.baldovino@gmail.com">wtfroland.com</a>.</p>
-  </footer>
+    <footer>
+        <p>copyright &copy; 2015 <a href="mailto:roland.baldovino@gmail.com">wtfroland.com</a>.</p>
+    </footer>
+
+    <iframe id="lab"></iframe>
+
+    <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="js/script.js"></script>
 </body>
 </html>

@@ -20,7 +20,7 @@ module.exports = function (grunt) {
     sass: {
       dist: {
         files: {
-          'public/css/style.css': 'public/css/style.scss'
+          'public/css/style.css': 'app/assets/style.scss'
         },
         options: {
           loadPath: [
@@ -45,7 +45,7 @@ module.exports = function (grunt) {
       },
       css: {
         files: [
-          'public/css/*.scss'
+          'app/assets/*.scss'
         ],
         tasks: ['sass'],
         options: {
