@@ -148,4 +148,8 @@ ready: out/msgstore.db.crypt15
 - Restored by SMS (through "Not you?") with the 17:1x key. WhatsApp has Contacts and Photos/Media permission.
 - Owner's check: **everything is good**. That covers photos and files, sending in previously broken chats, names, DMs, groups and today's messages.
 
+## Phase 5: clean up
+
+- With the owner's approval, deleted `work/` (7.0 GB: extracts, media copies, decrypted manifest, both 64-digit keys and the iPhone backup password) and `out/` (merged dbs and staged media). Kept `archive/` (470 MB, gitignored): the first iPhone ChatStorage, the HTML archive, and the 14:30 and 17:11 Android backups. These only open with the 64-digit keys, which are in the owner's password manager.
+
 ## Wrap-up

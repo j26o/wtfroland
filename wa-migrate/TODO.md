@@ -66,7 +66,7 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 ## Phase 5: clean up
 
-- [ ] Ask before deleting, then delete `work/` and `out/`. This includes both secret files and all unencrypted copies. The archive folder stays.
+- [x] Ask before deleting, then delete `work/` and `out/`. This includes both secret files and all unencrypted copies. The archive folder stays.
 - [ ] **HUMAN:** turn off USB debugging on the Android.
 - [ ] **HUMAN:** once happy, consider setting WhatsApp Google Drive backup back to daily.
 - [ ] Write a short wrap-up in `RESULTS.md`: what worked, what was missing, and what to build next (media is the likely next step). Then commit and push.
