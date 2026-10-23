@@ -76,4 +76,12 @@ ready: out/msgstore.db.crypt15
 - Rebuilt `out/msgstore.db.crypt15` from the same 14:30 template. Stats are unchanged (`chats: 362 (new: 249), messages added: 136657, already there: 0, integrity: ok`). Migrated messages newer than their chat pointer: 0. In hidden chats: 0. Pointer sort-id mismatches: 0. The 134 remaining type-7 system messages after their chat pointers are the same as in WhatsApp's own template.
 - The first push is kept as `out/first-push.db.crypt15`.
 
+### Second push (corrected backup)
+
+- `pm clear`: `Success`. `android-push`: exit 0 at 15:48. The phone holds only `msgstore.db.crypt15` (8170802 bytes, built 15:41), and its SHA-256 matches `out/msgstore.db.crypt15`.
+- Second restore (about 15:50): no error message, but **one-to-one chats (DMs) don't show**. Afterwards the pushed file is still on the phone, unchanged (8170802 bytes), and WhatsApp is still 2.26.41.77. Stopped here; nothing retried.
+- Diff of the first and second pushed dbs: the same 382 chats and the same messages. The only differences are pointer and `sort_timestamp` changes in 98 chats (95 groups, 3 `@lid`) and `hidden` cleared on 5 `@lid` chats. So the fix barely touched DMs. DMs were probably missing after the first restore too, which would be the "newer messages not displayed" report.
+- Every DM chat in the merged db (162 `@lid`, 66 `@s.whatsapp.net`) was created by `merge()`. Compared with the 133 chats WhatsApp created itself, ours have no `account_jid_row_id` (WhatsApp sets it equal to `jid_row_id` on every chat), no `chat_encryption_state` (WhatsApp uses 2 on 129 of 133 chats), and no `lid_chat_state` row (WhatsApp has one for 26 of its 28 `@lid` chats). The 21 groups we created have the same gaps. `chat_view` coalesces `account_jid_row_id` back to `jid_row_id`, so that column alone may not hide them. This is a hypothesis; it hasn't been confirmed on the phone.
+- adb dropped again before `logcat` could be read.
+
 ## Wrap-up
