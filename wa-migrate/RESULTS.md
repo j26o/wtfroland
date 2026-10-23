@@ -121,7 +121,13 @@ ready: out/msgstore.db.crypt15
 - iPhone: 9844 media items have a local file; 9843 are in the backup. `ios-extract --media` copied the 9769 distinct files the migrated messages use (6.5 GB, about 30 s).
 - Android schema (2.26.41.77): `message_media` holds `file_path` relative to `WhatsApp/` (e.g. `Media/WhatsApp Images/Sent/IMG-YYYYMMDD-WA0001.jpg`), `transferred`, `file_size`, `mime_type`, `media_name`, `file_hash` (base64 SHA-256) and `media_caption`. iOS → Android `message_type`: photo 1→1, video 2→3, audio 3→2, document 8→9, GIF 11→13, sticker 15→20. No thumbnails are generated.
 - First full run crashed in staging: 37 document titles are whole sentences, too long for a file name. Names are now single-line and at most 120 bytes.
-- `merge` into the 17:11 template: `media files: 9769`, integrity ok, round trip ok. By type: 7861 photos, 660 videos, 942 documents, 215 stickers, 62 GIFs, 29 audio. 3518 captions kept. 318 placeholder lines left (contacts, locations, files not in the backup). All 9769 files are staged in `out/WhatsApp/Media` (hard links). The chat-field and pointer checks are still 0. 16 tests pass.
+- `merge` into the 17:11 template: `media files: 9769`, integrity ok, round trip ok. By type: 7861 photos, 660 videos, 942 documents, 215 stickers, 62 GIFs, 29 audio. 3518 captions kept. 318 placeholder lines left (contacts, locations, files not in the backup). All 9769 files are staged in `out/WhatsApp/Media` (hard links). The chat-field and pointer checks are still 0. 15 tests pass.
 - `android-push` now checks the phone's free space and pushes `Media/` with `adb push --sync` before the backup.
+
+### Second iPhone backup (18:00)
+
+- `ios-extract --media`: 8 s, because the media extraction is incremental. 140829 messages (+11), newest 14:08 local (was 12:59). That's the window before WhatsApp moved to the Android. 9776 media files (+7). The earlier extract is kept as `work/ChatStorage-1321.sqlite`.
+- `merge` into the 17:11 template: `chats: 362 (new: 248), messages added: 136666, already there: 0, media files: 9776, integrity: ok`. All files staged. Created chats missing fields: 0. Migrated messages newer than their chat pointer: 0. Duplicate keys: 0.
+- Still to do: a fresh Android backup just before the clear, then merge, push and an SMS restore.
 
 ## Wrap-up
