@@ -12,15 +12,16 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 ## Phase 1: save every message from the iPhone
 
-- [ ] **HUMAN:** back up the iPhone to this computer. On a Mac, use Finder > iPhone > "Back up all of the data on your iPhone to this Mac" > Back Up Now. On Windows, use the Apple Devices app or iTunes > Back Up Now. Don't delete or re-verify WhatsApp on the iPhone.
-- [ ] **HUMAN, only if the backup is encrypted:** create `work/iphone-backup-password.txt` with the password on one line, using a text editor.
-- [ ] **HUMAN, macOS only:** give Full Disk Access to the app Claude runs in (Terminal, iTerm or VS Code). It's under System Settings > Privacy & Security > Full Disk Access. Restart that app afterwards. Without this, the backup folder can't be read.
-- [ ] Run `python wamigrate.py ios-extract`. Check that the device name and backup date it prints are this iPhone and today. If several backups are listed and the newest isn't the right one, rerun with `--backup <folder>`.
-- [ ] Run `python wamigrate.py ios-inspect --summary` and copy the output into `RESULTS.md`.
-- [ ] Ask the owner where to keep a permanent copy, outside the repo. The default is `~/WhatsApp-iPhone-archive/`. Copy `work/ChatStorage.sqlite` there as `ChatStorage-<YYYY-MM-DD>.sqlite`.
-- [ ] Make a readable archive in the same folder. Run `pip install whatsapp-chat-exporter`, then `wtsexporter -i -d work/ChatStorage.sqlite -o <archive>/html`. Tell the owner to open `<archive>/html` in a browser and check it. Note that it's text only.
-- [ ] Run `python wamigrate.py ios-inspect`. With the owner, pick a **test chat**: one-to-one, 50 to 500 messages, mostly text. Record only "1:1, N messages" in `RESULTS.md`, not the name.
-- [ ] Commit and push `RESULTS.md` and `TODO.md`.
+- [x] **HUMAN:** back up the iPhone to this computer. On a Mac, use Finder > iPhone > "Back up all of the data on your iPhone to this Mac" > Back Up Now. On Windows, use the Apple Devices app or iTunes > Back Up Now. Don't delete or re-verify WhatsApp on the iPhone.
+- [x] **HUMAN, only if the backup is encrypted:** create `work/iphone-backup-password.txt` with the password on one line, using a text editor.
+- [x] **HUMAN, macOS only:** give Full Disk Access to the app Claude runs in (Terminal, iTerm or VS Code). It's under System Settings > Privacy & Security > Full Disk Access. Restart that app afterwards. Without this, the backup folder can't be read.
+- [x] Run `python wamigrate.py ios-extract`. Check that the device name and backup date it prints are this iPhone and today. If several backups are listed and the newest isn't the right one, rerun with `--backup <folder>`.
+- [x] Run `python wamigrate.py ios-inspect --summary` and copy the output into `RESULTS.md`.
+- [x] Ask the owner where to keep a permanent copy, outside the repo. The default is `~/WhatsApp-iPhone-archive/`. Copy `work/ChatStorage.sqlite` there as `ChatStorage-<YYYY-MM-DD>.sqlite`.
+- [x] Make a readable archive in the same folder. Run `pip install whatsapp-chat-exporter`, then `wtsexporter -i -d work/ChatStorage.sqlite -o <archive>/html`. Tell the owner to open `<archive>/html` in a browser and check it. Note that it's text only.
+- [x] Run `python wamigrate.py ios-inspect`. With the owner, pick a **test chat**: one-to-one, 50 to 500 messages, mostly text. Record only "1:1, N messages" in `RESULTS.md`, not the name.
+  - 2026-10-23: the owner chose no test chat. The full merge is the test, so Phase 3 is skipped.
+- [x] Commit and push `RESULTS.md` and `TODO.md`.
 
 ## Phase 2: Android template backup
 
@@ -41,6 +42,8 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 ## Phase 3: trial with one chat
 
+**Skipped (owner's choice, 2026-10-23).** Phase 4 is the test. If it fails, use the undo steps at the end of this phase.
+
 - [ ] Run `python wamigrate.py merge --chat "<test chat>"` and record the stats line in `RESULTS.md`. It must end with `integrity: ok` and `ready:`.
 - [ ] Ask the owner for approval, then run `adb shell pm clear com.whatsapp`. This wipes WhatsApp on the Android. Its chats are already inside the file about to be restored.
 - [ ] Ask the owner for approval, then run `python wamigrate.py android-push`.
@@ -54,7 +57,7 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
   - **If it worked**, go to Phase 4.
   - **If it failed**, undo it. Run `pm clear` (with approval), then `python wamigrate.py android-push work/template.db.crypt15`, then have the owner restore. Record the error and stop.
 
-## Phase 4: full run (only if Phase 3 worked)
+## Phase 4: full run (only if Phase 3 worked, or Phase 3 was skipped)
 
 - [ ] Run `python wamigrate.py merge` with no `--chat`, and record the stats line.
 - [ ] Ask the owner for approval, then run `adb shell pm clear com.whatsapp` and `python wamigrate.py android-push`.

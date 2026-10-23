@@ -1,6 +1,9 @@
 # These hold your chats, some of them unencrypted. Never commit them.
 work/
 out/
+archive/
+# wtsexporter also drops vCards in the folder it runs from.
+AppDomainGroup-*/
 *.crypt15
 *.sqlite
 *.db
