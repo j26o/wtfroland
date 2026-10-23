@@ -214,3 +214,24 @@ def test_full_pipeline_through_crypt15(tmp_path, ios_db, android_db):
     assert rows(check, "SELECT COUNT(*) FROM message") == [(7,)]
     # Header carried over from the reference, so the files start the same way.
     assert result.read_bytes()[:3] == template.read_bytes()[:3]
+
+
+def test_secret_lookup_order(tmp_path, monkeypatch):
+    f = tmp_path / "key.txt"
+    monkeypatch.delenv("WAMIGRATE_KEY", raising=False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    with pytest.raises(SystemExit):
+        wamigrate.secret(None, "WAMIGRATE_KEY", f, "key: ")
+    f.write_text("from-file\n")
+    assert wamigrate.secret(None, "WAMIGRATE_KEY", f, "key: ") == "from-file"
+    monkeypatch.setenv("WAMIGRATE_KEY", "from-env")
+    assert wamigrate.secret(None, "WAMIGRATE_KEY", f, "key: ") == "from-env"
+    assert wamigrate.secret("from-arg", "WAMIGRATE_KEY", f, "key: ") == "from-arg"
+
+
+def test_inspect_summary_has_no_names(ios_db, capsys):
+    wamigrate.main(["ios-inspect", str(ios_db), "--summary"])
+    out = capsys.readouterr().out
+    assert "chats: 3 (2 one-to-one, 1 groups)" in out
+    assert "2023-11-14 to 2023-11-14" in out
+    assert "Mum" not in out and "6591110000" not in out

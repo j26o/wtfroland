@@ -1,5 +1,7 @@
 # wamigrate (prototype)
 
+> Want Claude to run this for you? Open a Claude Code session in this folder and say "work through TODO.md". It follows `CLAUDE.md` and stops whenever it needs you.
+
 Moves WhatsApp chat history from an iPhone into WhatsApp on Android. No root, no factory reset, no paid tools.
 
 **Status:** tested against synthetic databases only. Your first run is the real test. The iPhone is never modified, so the worst case is redoing the Android side.
@@ -54,7 +56,7 @@ Don't delete WhatsApp from the iPhone, and don't verify your number on it again.
    - Mac: in Finder, select the iPhone, choose "Back up all of the data on your iPhone to this Mac", then click **Back Up Now**.
    - Windows: use the Apple Devices app or iTunes and click **Back Up Now**.
 
-   An encrypted backup is fine. You'll be asked for its password.
+   An encrypted backup is fine. You'll be asked for its password, or you can put it on one line in `work/iphone-backup-password.txt`.
 2. On a Mac, give Terminal Full Disk Access first. Go to System Settings > Privacy & Security > Full Disk Access, add Terminal, then reopen Terminal. Without this, macOS blocks access to the backup folder.
 3. Extract the chats and list them:
 
@@ -89,7 +91,7 @@ Don't delete WhatsApp from the iPhone, and don't verify your number on it again.
 python wamigrate.py merge --chat "Name of the test chat"
 ```
 
-Type or paste the 64-digit key when asked. The tool decrypts, merges, encrypts, then checks that the result decrypts back correctly. You get `out/msgstore.db.crypt15`.
+Type or paste the 64-digit key when asked, or put it on one line in `work/backup-key.txt`. The tool decrypts, merges, encrypts, then checks that the result decrypts back correctly. You get `out/msgstore.db.crypt15`.
 
 Next, restore it:
 

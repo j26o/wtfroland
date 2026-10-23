@@ -27,6 +27,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 APPLE_EPOCH = 978307200
@@ -60,6 +61,21 @@ JID_TYPE = {"s.whatsapp.net": 0, "lid": 18, "g.us": 1}
 def die(msg: str) -> None:
     print(f"error: {msg}", file=sys.stderr)
     sys.exit(1)
+
+
+def secret(value: str | None, env: str, file: Path, prompt: str) -> str:
+    """A password or key, from (in order) the command line, an environment variable,
+    a one-line file, or an interactive prompt. Files and env vars let an agent run
+    the tool without the secret ever appearing in a command or its output."""
+    if value:
+        return value
+    if os.environ.get(env):
+        return os.environ[env].strip()
+    if file.is_file():
+        return file.read_text().strip()
+    if sys.stdin.isatty():
+        return getpass.getpass(prompt)
+    die(f"{prompt.rstrip(': ')} needed. Put it on one line in {file}, or set {env}.")
 
 
 def columns(db: sqlite3.Connection, table: str) -> set[str]:
@@ -110,8 +126,8 @@ def extract_chatstorage(backup: Path, out: Path, password: str | None) -> Path:
             from iphone_backup_decrypt import EncryptedBackup
         except ImportError:
             die("this backup is encrypted. Run: pip install iphone_backup_decrypt")
-        if password is None:
-            password = getpass.getpass("iPhone backup password: ")
+        password = secret(password, "WAMIGRATE_BACKUP_PASSWORD", out / "iphone-backup-password.txt",
+                          "iPhone backup password: ")
         eb = EncryptedBackup(backup_directory=str(backup), passphrase=password)
         for name in names:
             try:
@@ -442,11 +458,12 @@ def main(argv: list[str] | None = None) -> None:
 
     s = sub.add_parser("ios-extract", help="pull ChatStorage.sqlite out of an iPhone backup")
     s.add_argument("--backup", type=Path, help="backup folder (default: newest one on this computer)")
-    s.add_argument("--password", help="backup password, if the backup is encrypted (prompted if omitted)")
+    s.add_argument("--password", help="backup password if encrypted (default: work/iphone-backup-password.txt or prompt)")
     s.add_argument("--out", type=Path, default=Path("work"))
 
     s = sub.add_parser("ios-inspect", help="list the chats in ChatStorage.sqlite")
     s.add_argument("ios_db", type=Path, nargs="?", default=Path("work/ChatStorage.sqlite"))
+    s.add_argument("--summary", action="store_true", help="counts only, no names or numbers")
 
     s = sub.add_parser("android-pull", help="copy the phone's encrypted backup to this computer")
     s.add_argument("--out", type=Path, default=Path("work"))
@@ -454,7 +471,7 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("merge", help="build a new encrypted backup with the iPhone chats added")
     s.add_argument("--ios", type=Path, default=Path("work/ChatStorage.sqlite"))
     s.add_argument("--template", type=Path, default=Path("work/template.db.crypt15"))
-    s.add_argument("--key", help="64-digit key, key file or screenshot (prompted if omitted)")
+    s.add_argument("--key", help="64-digit key or key file (default: work/backup-key.txt, $WAMIGRATE_KEY or prompt)")
     s.add_argument("--chat", action="append", default=[],
                    help="only chats whose name or number contains this text (repeatable)")
     s.add_argument("--no-placeholders", action="store_true", help="skip media messages instead of adding [Photo] lines")
@@ -481,15 +498,28 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "ios-inspect":
         ios = sqlite3.connect(f"file:{a.ios_db}?mode=ro", uri=True)
         chats = ios_chats(ios)
-        print(f"{'messages':>8}  {'type':<6} name / number")
-        for _, jid, name, stype, _, count in chats:
-            kind = "group" if stype in GROUP_SESSION_TYPES else "1:1"
-            print(f"{count:>8}  {kind:<6} {name or ''}  ({jid})")
-        print(f"\n{len(chats)} chats, {sum(c[5] for c in chats)} messages")
+        if a.summary:
+            groups = [c for c in chats if c[3] in GROUP_SESSION_TYPES]
+            counts = dict(ios.execute("SELECT ZMESSAGETYPE, COUNT(*) FROM ZWAMESSAGE GROUP BY 1"))
+            text = sum(counts.get(t, 0) for t in TEXT_TYPES)
+            media = sum(counts.get(t, 0) for t in PLACEHOLDERS)
+            dates = ios.execute("SELECT MIN(ZMESSAGEDATE), MAX(ZMESSAGEDATE) FROM ZWAMESSAGE").fetchone()
+            print(f"chats: {len(chats)} ({len(chats) - len(groups)} one-to-one, {len(groups)} groups)")
+            print(f"messages: {sum(counts.values())} total, {text} text, {media} media/other (placeholders)")
+            if dates[0] is not None:
+                span = [datetime.fromtimestamp(d + APPLE_EPOCH, timezone.utc).date() for d in dates]
+                print(f"date range: {span[0]} to {span[1]}")
+        else:
+            print(f"{'messages':>8}  {'type':<6} name / number")
+            for _, jid, name, stype, _, count in chats:
+                kind = "group" if stype in GROUP_SESSION_TYPES else "1:1"
+                print(f"{count:>8}  {kind:<6} {name or ''}  ({jid})")
+            print(f"\n{len(chats)} chats, {sum(c[5] for c in chats)} messages")
     elif a.cmd == "android-pull":
         android_pull(a.out)
     elif a.cmd == "merge":
-        key = normalise_key(a.key or getpass.getpass("64-digit WhatsApp backup key: "))
+        key = normalise_key(secret(a.key, "WAMIGRATE_KEY", Path("work/backup-key.txt"),
+                                   "64-digit WhatsApp backup key: "))
         for f in (a.ios, a.template):
             if not f.exists():
                 die(f"{f} not found")
