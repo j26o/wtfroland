@@ -1,0 +1,8 @@
+# These hold your chats, some of them unencrypted. Never commit them.
+work/
+out/
+*.crypt15
+*.sqlite
+*.db
+.venv/
+__pycache__/

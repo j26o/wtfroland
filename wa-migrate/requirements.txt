@@ -1,0 +1,6 @@
+# Encrypts and decrypts WhatsApp .crypt15 backups (GPL-3.0). Pinned to a recent main
+# commit: the PyPI release (0.1.0) predates the --reference header copying we rely on.
+wa-crypt-tools @ git+https://github.com/ElDavoo/wa-crypt-tools@b16a805a394b8e243334f286dcf30f262e60db4f
+# Only needed if your iPhone backup is encrypted.
+iphone_backup_decrypt==0.11.2
+pytest
