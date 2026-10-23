@@ -104,4 +104,15 @@ ready: out/msgstore.db.crypt15
 - `merge`: `chats: 362 (new: 248), messages added: 136657, already there: 0, integrity: ok`, 1 min 55 s. Merged: 361 chats, 137003 messages. All 346 template messages kept. Migrated messages newer than their chat pointer: 0. In hidden chats: 0. Pointer sort-id mismatches: 0.
 - The owner cleared WhatsApp's data themselves (the phone's `Databases/` was empty and WhatsApp wasn't running). `android-push`: exit 0 at 17:16, 8065787 bytes, and its SHA-256 matches `out/msgstore.db.crypt15`.
 
+### Fourth restore (fresh template, by SMS)
+
+- Setup again opened on the linked-account "Continue as" screen and hung on "Connecting…" with no way back. `adb shell am force-stop com.whatsapp` got out of it; the pushed file was still there. The owner then went through "Not you?" and SMS, and the **restore ran**.
+- Owner's first checks: `[Photo]` and `[Document]` placeholders show (expected). **Sending fails in one migrated 1:1 chat**, and some recent messages in a busy 1:1 chat are missing.
+- Sending: that chat is one of the 227 1:1 and 21 group chats `merge()` creates. Like all of them, it has no `account_jid_row_id`, no `chat_encryption_state` and no `lid_chat_state` row. WhatsApp's own chats always have the first two (1:1 `@lid` chats use encryption state 1 or 2) and usually the third. Likely cause, not yet proven.
+- Missing recent messages: the busy chat merged correctly into WhatsApp's own `@lid` chat. It holds the iPhone history up to 12:50 local, plus the Android's own messages (3 received at 16:29, 1 sent at 17:09). Anything exchanged between those times on the Android (about 14:30 to 16:57) was wiped by the `pm clear` before the second and third pushes and isn't in any backup. The other person still has those messages.
+
+- Sending fails in that chat for text as well as photos ("Your message was not sent"). adb was disconnected, so there's no log of the failure.
+- Fix: chats `merge()` creates, chats it unhides, and chats left by an earlier run (no `account_jid_row_id` or `chat_encryption_state`) now copy WhatsApp's own rows for a chat in use: `account_jid_row_id = jid_row_id`, `chat_encryption_state = 2`, `spam_detection = 1`, `plaintext_disabled = 1`. 1:1 chats also get `chat_origin = 'general'`, `participation_status = 0`, `group_member_count = -1`, and `@lid` chats get a `lid_chat_state` row (`is_pn_shared = 1`). These values come from the one `@lid` chat WhatsApp itself had in use; whether they fix sending isn't confirmed until the next restore. 13 tests pass, and the new test fails on the old code.
+- Re-merged into the 17:11 template: same stats. Created chats missing the new fields: 0. Created `@lid` chats without `lid_chat_state`: 0. The 17:16 push is kept as `out/pushed-1716.db.crypt15`.
+
 ## Wrap-up

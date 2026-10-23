@@ -166,6 +166,45 @@ def test_existing_chat_with_only_older_messages_moves_to_newest_and_shows(ios_db
     assert chat == (0, e1[0], e1[1], e1[0], e1[2])
 
 
+def test_created_chats_look_like_whatsapps_own(ios_db, android_db):
+    # Current WhatsApp columns and table; without them a created chat shows but can't send.
+    db = sqlite3.connect(android_db)
+    for col in ("account_jid_row_id", "chat_encryption_state", "spam_detection", "plaintext_disabled",
+                "chat_origin", "participation_status", "group_member_count"):
+        db.execute(f"ALTER TABLE chat ADD COLUMN {col}")
+    db.execute("CREATE TABLE lid_chat_state(jid_row_id INTEGER PRIMARY KEY NOT NULL, is_pn_shared INTEGER NOT NULL "
+               "DEFAULT 0, pn_requested_ts INTEGER NOT NULL DEFAULT 0, pnh_duplicate_lid_thread INTEGER NOT NULL "
+               "DEFAULT 0)")
+    # WhatsApp knows Mum's LID, so her chat is created on it.
+    db.executemany("INSERT INTO jid(_id,user,server,agent,device,type,raw_string) VALUES (?,?,?,0,0,?,?)", [
+        (5, "77770000", "lid", 18, "77770000@lid"),
+        (6, "6591110000", "s.whatsapp.net", 0, "6591110000@s.whatsapp.net"),
+    ])
+    db.execute("INSERT INTO jid_map VALUES (5, 6)")
+    db.execute("UPDATE chat SET account_jid_row_id=jid_row_id, chat_encryption_state=4 WHERE _id=1")
+    db.commit()
+    db.close()
+
+    wamigrate.merge(ios_db, android_db)
+    mum = rows(android_db, "SELECT c.jid_row_id, c.account_jid_row_id, c.chat_encryption_state, c.chat_origin, "
+                           "c.hidden FROM chat c WHERE c.jid_row_id=5")
+    assert mum == [(5, 5, 2, "general", 0)]
+    assert rows(android_db, "SELECT is_pn_shared FROM lid_chat_state WHERE jid_row_id=5") == [(1,)]
+    family = rows(android_db, "SELECT c.account_jid_row_id = c.jid_row_id, c.chat_encryption_state, c.chat_origin "
+                              "FROM chat c JOIN jid j ON j._id=c.jid_row_id WHERE j.server='g.us'")
+    assert family == [(1, 2, None)]
+    # The chat that was already on the Android is left as WhatsApp made it.
+    assert rows(android_db, "SELECT account_jid_row_id, chat_encryption_state FROM chat WHERE _id=1") == [(2, 4)]
+
+    # A rerun on a phone migrated by an older version repairs the chats it created.
+    db = sqlite3.connect(android_db)
+    db.execute("UPDATE chat SET account_jid_row_id=NULL, chat_encryption_state=NULL WHERE jid_row_id=5")
+    db.commit()
+    db.close()
+    wamigrate.merge(ios_db, android_db)
+    assert rows(android_db, "SELECT account_jid_row_id, chat_encryption_state FROM chat WHERE jid_row_id=5") == [(5, 2)]
+
+
 def test_running_twice_adds_nothing(ios_db, android_db):
     wamigrate.merge(ios_db, android_db)
     again = wamigrate.merge(ios_db, android_db)

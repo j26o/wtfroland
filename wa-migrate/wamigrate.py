@@ -249,6 +249,28 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
             rows |= {r[0] for r in cur.execute("SELECT jid_row_id FROM jid_map WHERE lid_row_id=?", (jrow,))}
         return rows
 
+    has_lid_state = bool(cur.execute("SELECT 1 FROM sqlite_master WHERE name='lid_chat_state'").fetchone())
+
+    def make_usable(chat: int) -> None:
+        # Copy how WhatsApp's own rows look for a chat in use. Without this a chat we create (or
+        # unhide) shows its history, but sending in it fails with "Your message was not sent".
+        jrow, server = cur.execute("SELECT c.jid_row_id, j.server FROM chat c JOIN jid j ON j._id = c.jid_row_id "
+                                   "WHERE c._id=?", (chat,)).fetchone()
+        values = {"hidden": 0, "account_jid_row_id": jrow, "chat_encryption_state": 2,
+                  "spam_detection": 1, "plaintext_disabled": 1}
+        if server != "g.us":
+            values.update(chat_origin="general", participation_status=0, group_member_count=-1)
+        values = {k: v for k, v in values.items() if k in chat_cols}
+        cur.execute(f"UPDATE chat SET {', '.join(f'{k}=?' for k in values)} WHERE _id=?", (*values.values(), chat))
+        if server == "lid" and has_lid_state:
+            cur.execute("INSERT OR IGNORE INTO lid_chat_state(jid_row_id, is_pn_shared) VALUES (?,1)", (jrow,))
+
+    def needs_fixing(chat: int) -> bool:
+        # Hidden, or created by an earlier run of this tool (WhatsApp always fills these in).
+        checks = ["hidden = 1"] + [f"{c} IS NULL" for c in ("account_jid_row_id", "chat_encryption_state")
+                                   if c in chat_cols]
+        return bool(cur.execute(f"SELECT {' OR '.join(checks)} FROM chat WHERE _id=?", (chat,)).fetchone()[0])
+
     def lid_of(jrow: int) -> int:
         # Current WhatsApp addresses group senders by LID when it knows one.
         if not has_jid_map:
@@ -278,6 +300,7 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
                         (target, name if stype in GROUP_SESSION_TYPES else None, int(archived or 0)))
             chat_for_session[pk] = cur.lastrowid
             created_chats.add(cur.lastrowid)
+            make_usable(cur.lastrowid)
 
         member_jid = dict(ios.execute("SELECT Z_PK, ZMEMBERJID FROM ZWAGROUPMEMBER"))
         rows = ios_messages(ios, set(chat_for_session), placeholders)
@@ -323,7 +346,8 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
         pointer_cols = [c for c in ("last_message_row_id", "display_message_row_id", "last_read_message_row_id")
                         if c in chat_cols]
         for chat, (ts, mid) in newest.items():
-            cur.execute("UPDATE chat SET hidden=0 WHERE _id=?", (chat,))
+            if needs_fixing(chat):
+                make_usable(chat)
             if chat in chats_with_messages:
                 last = cur.execute("SELECT m.timestamp FROM chat c JOIN message m ON m._id = c.last_message_row_id "
                                    "WHERE c._id=?", (chat,)).fetchone()
