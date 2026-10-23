@@ -307,18 +307,28 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
                 (chat, int(from_me or 0), stanza or f"MIGRATED{pk:012d}", sender, 13 if from_me else 0,
                  ts, ts, text, int(starred or 0), sort_id))
             if cur.rowcount == 0:
+                # Already there, e.g. merging into a backup of an earlier migration: still count it
+                # for the chat pointers below, so a rerun can repair them.
                 skipped += 1
-                continue
-            inserted += 1
-            newest[chat] = (ts, cur.lastrowid)
+                mid = cur.execute("SELECT _id FROM message WHERE chat_row_id=? AND from_me=? AND key_id=?",
+                                  (chat, int(from_me or 0), stanza or f"MIGRATED{pk:012d}")).fetchone()[0]
+            else:
+                inserted += 1
+                mid = cur.lastrowid
+            newest[chat] = (ts, mid)
             oldest.setdefault(chat, ts)
 
-        # Chats that had no messages on Android: point them at their newest migrated message.
+        # Point each chat at its newest migrated message, unless the Android already has a newer one.
+        # WhatsApp seeds chats at registration with old system messages, and hides some of them.
         pointer_cols = [c for c in ("last_message_row_id", "display_message_row_id", "last_read_message_row_id")
                         if c in chat_cols]
         for chat, (ts, mid) in newest.items():
+            cur.execute("UPDATE chat SET hidden=0 WHERE _id=?", (chat,))
             if chat in chats_with_messages:
-                continue
+                last = cur.execute("SELECT m.timestamp FROM chat c JOIN message m ON m._id = c.last_message_row_id "
+                                   "WHERE c._id=?", (chat,)).fetchone()
+                if last and last[0] >= ts:
+                    continue
             sets = ", ".join(f"{c}=?" for c in pointer_cols)
             extra = [c for c in ("unseen_message_count", "unseen_row_count") if c in chat_cols]
             sets += "".join(f", {c}=0" for c in extra)

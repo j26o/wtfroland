@@ -59,8 +59,8 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 ## Phase 4: full run (only if Phase 3 worked, or Phase 3 was skipped)
 
-- [ ] Run `python wamigrate.py merge` with no `--chat`, and record the stats line.
-- [ ] Ask the owner for approval, then run `adb shell pm clear com.whatsapp` and `python wamigrate.py android-push`.
+- [x] Run `python wamigrate.py merge` with no `--chat`, and record the stats line.
+- [x] Ask the owner for approval, then run `adb shell pm clear com.whatsapp` and `python wamigrate.py android-push`.
 - [ ] **HUMAN:** restore as in Phase 3, then spot-check 3 to 5 chats, including one group.
 - [ ] Record the outcome, then commit and push.
 

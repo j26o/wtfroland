@@ -151,11 +151,40 @@ def test_sort_order_follows_time_and_pointers_are_consistent(ios_db, android_db)
     assert mum == newest
 
 
+def test_existing_chat_with_only_older_messages_moves_to_newest_and_shows(ios_db, android_db):
+    # WhatsApp seeds chats at registration with old system messages, and hides some of them.
+    db = sqlite3.connect(android_db)
+    db.execute("UPDATE message SET timestamp=? WHERE _id=1", (T0 * 1000,))
+    db.execute("UPDATE chat SET hidden=1, sort_timestamp=? WHERE _id=1", (T0 * 1000,))
+    db.commit()
+    db.close()
+
+    wamigrate.merge(ios_db, android_db)
+    chat = rows(android_db, "SELECT hidden, last_message_row_id, last_message_sort_id, display_message_row_id, "
+                            "sort_timestamp FROM chat WHERE _id=1")[0]
+    e1 = rows(android_db, "SELECT _id, sort_id, timestamp FROM message WHERE key_id='E1'")[0]
+    assert chat == (0, e1[0], e1[1], e1[0], e1[2])
+
+
 def test_running_twice_adds_nothing(ios_db, android_db):
     wamigrate.merge(ios_db, android_db)
     again = wamigrate.merge(ios_db, android_db)
     assert again["inserted"] == 0 and again["duplicates"] == 6
     assert rows(android_db, "SELECT COUNT(*) FROM message") == [(7,)]
+
+
+def test_rerun_repairs_stale_pointers_and_hidden_chats(ios_db, android_db):
+    wamigrate.merge(ios_db, android_db)
+    mum = "(SELECT c._id FROM chat c JOIN jid j ON j._id=c.jid_row_id WHERE j.raw_string='6591110000@s.whatsapp.net')"
+    db = sqlite3.connect(android_db)
+    db.execute(f"UPDATE chat SET hidden=1, last_message_row_id=(SELECT _id FROM message WHERE key_id='A1'), "
+               f"sort_timestamp=0 WHERE _id={mum}")
+    db.commit()
+    db.close()
+
+    wamigrate.merge(ios_db, android_db)
+    assert rows(android_db, f"SELECT c.hidden, m.key_id, c.sort_timestamp = m.timestamp FROM chat c "
+                            f"JOIN message m ON m._id = c.last_message_row_id WHERE c._id={mum}") == [(0, "A3", 1)]
 
 
 def test_chat_filter_and_no_placeholders(ios_db, android_db):

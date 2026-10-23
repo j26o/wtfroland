@@ -49,4 +49,31 @@ Skipped by the owner's choice; see Phase 1.
 
 ## Phase 4: full run
 
+- `merge` (no `--chat`) took 1 min 54 s; the 64-digit key decrypted the template.
+
+```
+chats: 362 (new: 249), messages added: 136657, already there: 0, integrity: ok
+ready: out/msgstore.db.crypt15
+```
+
+- Round-trip check passed. `out/msgstore.db.crypt15` is 8170820 bytes (plain merged db 19124224 bytes).
+- 136657 added = 126593 text + 10064 placeholders. The other 4161 iPhone messages (system or other types) were not carried over.
+- Template before merge: 133 chats (105 groups, 28 `@lid` one-to-one), 345 messages, from WhatsApp syncing groups at registration. So 113 iPhone chats matched an existing chat and 249 were added.
+- Merged: 382 chats (126 groups, 190 `@lid`, 66 `@s.whatsapp.net`), 137002 messages.
+- Thing to check after restore: 1:1 chats now use two ID types (`@lid` and phone number). A contact could show up as two separate chats.
+- Before `pm clear`: adb lost the phone twice. The Mac saw the Samsung on USB, but only its file-transfer and modem connections, with no debugging connection. Cause: Samsung Auto Blocker ("Block commands by USB cable") was on. With it off, adb worked again.
+- `adb shell pm clear com.whatsapp`: `Success`, 15:26.
+- `pm clear` on Android 17 also emptied `Android/media/com.whatsapp/WhatsApp/Databases/`. Both phone backups were gone before the push, so `android-push` had nothing to move to `Databases.before-wamigrate/`. The template survives in `work/` and `archive/`, but the README's "the phone's backups are moved aside" doesn't hold on this phone.
+- `android-push`: exit 0. The phone's `Databases/` now holds only `msgstore.db.crypt15` (8170820 bytes), and its SHA-256 matches `out/msgstore.db.crypt15`.
+
+### First restore (15:3x): worked, but incomplete display
+
+- The restore succeeded. Owner's report: `[Photo]` placeholders show (expected, since media isn't migrated), and "some of the newer messages are not displayed".
+- Cause, found in the merged db (counts only), was two bugs in `merge()`:
+  1. **Stale chat pointers.** WhatsApp seeds 105 chats at registration (104 groups, 1 one-to-one) with system messages (type 7), some dated years back. `merge()` updated `last_message_row_id`, `display_message_row_id`, `last_read_message_row_id`, their sort ids and `sort_timestamp` only for chats with **no** Android messages. In these 105 chats, about 48,000 migrated messages were newer than the chat's last-message pointer.
+  2. **Hidden chats.** 27 one-to-one `@lid` chats in the template had `hidden=1`. iPhone chats were merged into them unchanged, so about 4,800 messages sat in invisible chats.
+- Fix (commit after this note): every chat that gets iPhone messages is unhidden, and its pointers move to the newest iPhone message unless the Android already has a newer one. Messages that are already there count too, so rerunning `merge` on a backup of a migrated phone repairs the pointers. Two tests were added; 12 pass. The new test fails on the old code.
+- Rebuilt `out/msgstore.db.crypt15` from the same 14:30 template. Stats are unchanged (`chats: 362 (new: 249), messages added: 136657, already there: 0, integrity: ok`). Migrated messages newer than their chat pointer: 0. In hidden chats: 0. Pointer sort-id mismatches: 0. The 134 remaining type-7 system messages after their chat pointers are the same as in WhatsApp's own template.
+- The first push is kept as `out/first-push.db.crypt15`.
+
 ## Wrap-up
