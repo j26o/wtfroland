@@ -85,4 +85,19 @@ ready: out/msgstore.db.crypt15
 - adb dropped again before `logcat` could be read.
 - Owner's answers: **all** DMs were missing, all groups were visible, and **DMs did show after the first restore**. WhatsApp has since reset. The owner suspects setup didn't complete. This fits the evidence better than the missing-fields hypothesis: the DM rows are near-identical in both pushes and showed the first time. Groups are visible anyway because WhatsApp syncs the group list from the server, and DMs only exist in the restored history. Most likely the restore didn't finish, so the plan is to clear, re-push the same corrected backup and restore again, letting it finish.
 
+### Third push (same corrected backup)
+
+- Before this, the Mac saw no USB device at all; a different cable or port fixed it. `pm clear`: `Success`. `android-push`: exit 0 at 16:57. The phone holds only `msgstore.db.crypt15` (8170802 bytes), and its SHA-256 matches `out/msgstore.db.crypt15`.
+
+- Third restore (about 17:00): the chat list loads with groups, DMs and older chats dated back to September. Owner reports "an error in the sync" (text not captured) and that contact **names are gone**, so DMs show as phone numbers.
+- Cause of the missing names: `pm clear` also resets runtime permissions, and WhatsApp's `READ_CONTACTS` is now `granted=false`. The phone itself has 824 contacts. Names come from the address book, not from the backup, so the fix is to grant Contacts again and refresh. No new push or SMS code needed.
+- `logcat` (16:51 to 17:04, read at the owner's request): no restore, database or crash errors from WhatsApp. At 16:58:17 WhatsApp opened the system permission dialog, which closed about 1.6 s later, and `READ_CONTACTS` was still `granted=false` at 17:04. Android's SyncManager logged `SYNC_OP_STATE_INVALID: NOT_SYNCABLE` at 17:04, consistent with WhatsApp's contact sync being off without the permission. The log copy was deleted after reading.
+
+- The owner says the migrated messages are **not there** after this setup either. The WhatsApp screens in `logcat` explain why: `EULA` → `waffle.sso.ui.LinkedUsersActivity` (sign-in through a linked Meta account) → `HomeActivity` → `backup.google.GoogleDriveNewUserSetupActivity`. No phone-number verification screen and **no restore screen** appeared. Signing in through the linked account skips the local-backup restore. The chats in the list are groups synced from the server plus messages delivered since. The pushed backup is still untouched on the phone (8170802 bytes, 15:41). The second restore (DMs missing) was probably the same.
+- Lesson for the runbook: at setup, don't use the linked-account or "Continue as" sign-in. Verify by phone number and SMS so that WhatsApp looks for the local backup and offers **Restore**.
+
+### Next attempt: fresh template
+
+- The owner chose to keep the Android's messages from today: take a fresh 64-digit backup, re-merge the iPhone chats into it, then clear and restore by SMS. Set aside first (all gitignored): `work/backup-key-1430.txt`, `work/template-1430.db.crypt15` (also in `archive/`) and `out/corrected-1541.db.crypt15`.
+
 ## Wrap-up
