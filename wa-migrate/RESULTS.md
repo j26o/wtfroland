@@ -143,4 +143,9 @@ ready: out/msgstore.db.crypt15
 - First `android-push` failed at 18% of the media: `remote couldn't create file: Operation not permitted` on a document name containing `*`. The backup wasn't pushed. Fix: document names also replace `* ? " < > |` and trim trailing dots and spaces (test added, 15 pass). Re-merged with the same stats.
 - Second `android-push`: exit 0, about 2 min 17 s (`--sync` skipped files already copied). On the phone: `msgstore.db.crypt15` (8815593 bytes, 18:28) with SHA-256 matching `out/`, and 9777 media files with the same names and sizes as `out/WhatsApp/Media`. 3 leftover files from the failed attempt (old names) were removed.
 
+### Final restore: success
+
+- Restored by SMS (through "Not you?") with the 17:1x key. WhatsApp has Contacts and Photos/Media permission.
+- Owner's check: **everything is good**. That covers photos and files, sending in previously broken chats, names, DMs, groups and today's messages.
+
 ## Wrap-up
