@@ -130,4 +130,11 @@ ready: out/msgstore.db.crypt15
 - `merge` into the 17:11 template: `chats: 362 (new: 248), messages added: 136666, already there: 0, media files: 9776, integrity: ok`. All files staged. Created chats missing fields: 0. Migrated messages newer than their chat pointer: 0. Duplicate keys: 0.
 - Still to do: a fresh Android backup just before the clear, then merge, push and an SMS restore.
 
+### Final iPhone backup (18:16) and combined build
+
+- The owner had re-verified WhatsApp on the iPhone, so the Android is logged out. The iPhone is in airplane mode, so nothing new arrives anywhere. A final iPhone backup was made over the cable.
+- `ios-extract --media`: 140831 messages (+2), newest 18:02 local. 9777 media files (+1).
+- `merge` into the 17:11 Android template (key: the one generated at 17:1x): `chats: 362 (new: 248), messages added: 136668, already there: 0, media files: 9777, integrity: ok`. All 346 Android messages kept. Staged files missing: 0. Created chats missing fields: 0. Migrated messages newer than their pointer: 0. Duplicate keys: 0. `out/msgstore.db.crypt15` is 8815601 bytes, plus 6.5 GB in `out/WhatsApp/Media`.
+- Lost for good on the Android: messages it received between the 17:11 backup and its logout.
+
 ## Wrap-up
