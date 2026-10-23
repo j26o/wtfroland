@@ -14,7 +14,7 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 - [x] **HUMAN:** back up the iPhone to this computer. On a Mac, use Finder > iPhone > "Back up all of the data on your iPhone to this Mac" > Back Up Now. On Windows, use the Apple Devices app or iTunes > Back Up Now. Don't delete or re-verify WhatsApp on the iPhone.
 - [x] **HUMAN, only if the backup is encrypted:** create `work/iphone-backup-password.txt` with the password on one line, using a text editor.
-- [x] **HUMAN, macOS only:** give Full Disk Access to the app Claude runs in (Terminal, iTerm or VS Code). It's under System Settings > Privacy & Security > Full Disk Access. Restart that app afterwards. Without this, the backup folder can't be read.
+- [x] **HUMAN, macOS only:** give Full Disk Access to the app Claude runs in (Terminal, iTerm or VS Code; for the Claude desktop app, both Claude and its bundled `claude-code/<version>/<id>/claude.app`). It's under System Settings > Privacy & Security > Full Disk Access. Restart that app afterwards. Without this, the backup folder can't be read.
 - [x] Run `python wamigrate.py ios-extract` (add `--media` to bring photos, videos and files). Check that the device name and backup date it prints are this iPhone and today. If several backups are listed and the newest isn't the right one, rerun with `--backup <folder>`.
 - [x] Run `python wamigrate.py ios-inspect --summary` and copy the output into `RESULTS.md`.
 - [x] Ask the owner where to keep a permanent copy, outside the repo. The default is `~/WhatsApp-iPhone-archive/`. Copy `work/ChatStorage.sqlite` there as `ChatStorage-<YYYY-MM-DD>.sqlite`.

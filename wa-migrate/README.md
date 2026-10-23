@@ -4,7 +4,7 @@
 
 Moves WhatsApp chat history from an iPhone into WhatsApp on Android. No root, no factory reset, no paid tools.
 
-**Status:** tested against synthetic databases only. Your first run is the real test. The iPhone is never modified, so the worst case is redoing the Android side.
+**Status:** one real migration done (23 Oct 2026, iPhone to a Galaxy Z Fold on Android 17, WhatsApp 2.26.41.77): 362 chats, about 137,000 messages and 9,777 photos, videos and files. The full log is in `RESULTS.md`. The iPhone is never modified, so the worst case is redoing the Android side.
 
 ## How it works
 
@@ -58,7 +58,7 @@ Don't delete WhatsApp from the iPhone, and don't verify your number on it again.
    - Windows: use the Apple Devices app or iTunes and click **Back Up Now**.
 
    An encrypted backup is fine. You'll be asked for its password, or you can put it on one line in `work/iphone-backup-password.txt`.
-2. On a Mac, give Terminal Full Disk Access first. Go to System Settings > Privacy & Security > Full Disk Access, add Terminal, then reopen Terminal. Without this, macOS blocks access to the backup folder.
+2. On a Mac, give Terminal Full Disk Access first. Go to System Settings > Privacy & Security > Full Disk Access, add Terminal, then reopen Terminal. Without this, macOS blocks access to the backup folder. If Claude runs the commands from the Claude desktop app, add both **Claude** and the bundled `~/Library/Application Support/Claude/claude-code/<version>/<id>/claude.app` (press ⌘⇧G in the file picker), then restart Claude.
 3. Extract the chats and list them:
 
    ```bash
@@ -122,11 +122,14 @@ python wamigrate.py merge
 
 Then clear WhatsApp storage, run `python wamigrate.py android-push`, and restore again.
 
+**Before every clear, make a fresh Android backup and merge into that.** Clearing WhatsApp also deletes its backup folder on the phone, and anything that arrived since your last backup is gone from the phone. Run `android-pull` and `merge` again first; it takes about 2 minutes.
+
 Each restore needs a new SMS code. WhatsApp makes you wait longer between codes if you ask too often, so don't loop through restores quickly.
 
 ## If something goes wrong
 
 **WhatsApp doesn't offer to restore, or offers a Google Drive backup instead**
+- If setup showed **"Continue as"** with your photo and you continued, WhatsApp signed in through your linked Meta account and **skipped the restore**. Clear storage, push again, and this time tap **Not you?** and verify by SMS. If it hangs on "Connecting…", run `adb shell am force-stop com.whatsapp`. That only closes the app; don't use Clear storage there, or the pushed backup is deleted.
 - Check that the file is on the phone: `adb shell ls -l /sdcard/Android/media/com.whatsapp/WhatsApp/Databases/`
 - If a Drive backup exists for your number, delete it at drive.google.com > Storage > Backups, then clear storage and push again.
 
@@ -137,6 +140,11 @@ Each restore needs a new SMS code. WhatsApp makes you wait longer between codes 
 **"adb: no devices"**
 - Unlock the phone and accept the USB debugging prompt.
 - Set the USB mode to File transfer.
+- Samsung: turn off **Auto Blocker** (Settings > Security and privacy), or at least its "Block commands by USB cable" option. It hides USB debugging even when the switch is on.
+- If the computer doesn't see the phone at all, try another cable or port. Some cables only charge.
+
+**Contact names show as phone numbers**
+- Clearing storage also resets WhatsApp's permissions. Allow Contacts in Settings > Apps > WhatsApp > Permissions, then in WhatsApp tap New chat > ⋮ > Refresh.
 
 **Wrong key**
 - The key is 64 characters of 0–9 and a–f. Spaces don't matter. A single typo is usually corrected automatically.
