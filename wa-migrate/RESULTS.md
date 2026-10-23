@@ -100,4 +100,8 @@ ready: out/msgstore.db.crypt15
 
 - The owner chose to keep the Android's messages from today: take a fresh 64-digit backup, re-merge the iPhone chats into it, then clear and restore by SMS. Set aside first (all gitignored): `work/backup-key-1430.txt`, `work/template-1430.db.crypt15` (also in `archive/`) and `out/corrected-1541.db.crypt15`.
 
+- Fresh template: a new 64-digit key (different from the first), with the backup made at 17:11 (173073 bytes, 113 chats, 346 messages, 144 of them since 14:30). Archived as `archive/template-2026-10-23-1711.db.crypt15`.
+- `merge`: `chats: 362 (new: 248), messages added: 136657, already there: 0, integrity: ok`, 1 min 55 s. Merged: 361 chats, 137003 messages. All 346 template messages kept. Migrated messages newer than their chat pointer: 0. In hidden chats: 0. Pointer sort-id mismatches: 0.
+- The owner cleared WhatsApp's data themselves (the phone's `Databases/` was empty and WhatsApp wasn't running). `android-push`: exit 0 at 17:16, 8065787 bytes, and its SHA-256 matches `out/msgstore.db.crypt15`.
+
 ## Wrap-up
