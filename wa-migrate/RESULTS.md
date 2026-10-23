@@ -137,4 +137,10 @@ ready: out/msgstore.db.crypt15
 - `merge` into the 17:11 Android template (key: the one generated at 17:1x): `chats: 362 (new: 248), messages added: 136668, already there: 0, media files: 9777, integrity: ok`. All 346 Android messages kept. Staged files missing: 0. Created chats missing fields: 0. Migrated messages newer than their pointer: 0. Duplicate keys: 0. `out/msgstore.db.crypt15` is 8815601 bytes, plus 6.5 GB in `out/WhatsApp/Media`.
 - Lost for good on the Android: messages it received between the 17:11 backup and its logout.
 
+### Combined push (18:2x)
+
+- The owner cleared WhatsApp's data; its folder on the phone was gone. 378 GB free.
+- First `android-push` failed at 18% of the media: `remote couldn't create file: Operation not permitted` on a document name containing `*`. The backup wasn't pushed. Fix: document names also replace `* ? " < > |` and trim trailing dots and spaces (test added, 15 pass). Re-merged with the same stats.
+- Second `android-push`: exit 0, about 2 min 17 s (`--sync` skipped files already copied). On the phone: `msgstore.db.crypt15` (8815593 bytes, 18:28) with SHA-256 matching `out/`, and 9777 media files with the same names and sizes as `out/WhatsApp/Media`. 3 leftover files from the failed attempt (old names) were removed.
+
 ## Wrap-up

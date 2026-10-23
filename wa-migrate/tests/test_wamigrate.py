@@ -348,5 +348,7 @@ def test_document_keeps_its_name_without_clashing(tmp_path):
     assert names == ["Media/WhatsApp Documents/Deck.pdf", "Media/WhatsApp Documents/Deck (2).pdf"]
     assert wamigrate.android_media_path(8, True, 0, src, "a/b: c.pdf", counters, used) == \
         "Media/WhatsApp Documents/Sent/a_b_ c.pdf"
+    assert wamigrate.android_media_path(8, False, 0, src, 'by *31 Aug* "ok?" <x>|y.', counters, used) == \
+        "Media/WhatsApp Documents/by _31 Aug_ _ok__ _x__y.pdf"
     long = wamigrate.android_media_path(8, False, 0, src, "A long\ncaption " * 40, counters, used)
     assert "\n" not in long and long.endswith(".pdf") and len(long.rsplit("/", 1)[1].encode()) <= 124

@@ -290,12 +290,13 @@ def android_media_path(mtype: int, from_me: bool, ts: int, src: Path, title: str
     sub = f"Media/{folder}/" + ("Sent/" if from_me else "")
     if prefix is None:
         # Titles can be whole sentences with line breaks; keep a short, safe file name.
-        name = re.sub(r"[/\\:\0]", "_", " ".join((title or "").split()))
+        # Android's shared storage refuses * ? " < > | : and backslash in file names.
+        name = re.sub(r'[/\\:*?"<>|\0]', "_", " ".join((title or "").split()))
         if name.lower().endswith(ext):
             name = name[:len(name) - len(ext)]
         while len(name.encode()) > 120:
             name = name[:-1]
-        name = (name.strip() or src.stem) + ext
+        name = (name.strip(" .") or src.stem) + ext
         stem, n = name[:len(name) - len(ext)], 1
         while (sub + name).lower() in used:
             n += 1
