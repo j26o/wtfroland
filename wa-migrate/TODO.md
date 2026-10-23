@@ -4,11 +4,11 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 ## Phase 0: set up the computer
 
-- [ ] Check that `git branch --show-current` is `kdx/vigilant-newton-7qkjjn` and run `git pull`.
-- [ ] Check that Python is 3.10 or newer, and note the OS (macOS or Windows) in `RESULTS.md`.
-- [ ] Create `.venv`, activate it, and run `pip install -r requirements.txt`.
-- [ ] Run `python -m pytest -q tests`. All tests must pass before going on.
-- [ ] Check `adb version`. If it's missing, install Android platform-tools. On macOS use `brew install android-platform-tools`. On Windows, download it from developer.android.com and add it to PATH. Ask the owner before installing.
+- [x] Check that `git branch --show-current` is `kdx/vigilant-newton-7qkjjn` and run `git pull`.
+- [x] Check that Python is 3.10 or newer, and note the OS (macOS or Windows) in `RESULTS.md`.
+- [x] Create `.venv`, activate it, and run `pip install -r requirements.txt`.
+- [x] Run `python -m pytest -q tests`. All tests must pass before going on.
+- [x] Check `adb version`. If it's missing, install Android platform-tools. On macOS use `brew install android-platform-tools`. On Windows, download it from developer.android.com and add it to PATH. Ask the owner before installing.
 
 ## Phase 1: save every message from the iPhone
 
