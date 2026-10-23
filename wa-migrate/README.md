@@ -19,8 +19,9 @@ Because it builds on your phone's own backup, the result matches your exact What
 
 | Comes across | Doesn't (yet) |
 |---|---|
-| Text messages and links, 1:1 and groups | Photos, videos, voice notes and files (you get a `[Photo] caption` line instead) |
-| Who sent what in groups | Reactions, polls, edits, quoted replies |
+| Text messages and links, 1:1 and groups | Media whose file isn't in the iPhone backup (you get a `[Photo] caption` line instead) |
+| Photos, videos, voice notes, documents, GIFs and stickers (with `ios-extract --media`) | Reactions, polls, edits, quoted replies |
+| Who sent what in groups | View-once media, round video notes |
 | Original dates and order | Call history, status, broadcast lists, channels |
 | Starred messages | |
 | Locations (as a map link) and contact names | |
@@ -61,9 +62,11 @@ Don't delete WhatsApp from the iPhone, and don't verify your number on it again.
 3. Extract the chats and list them:
 
    ```bash
-   python wamigrate.py ios-extract
+   python wamigrate.py ios-extract --media
    python wamigrate.py ios-inspect
    ```
+
+   `--media` also copies photos, videos, voice notes and documents into `work/ios-media`. That can be several GB, and the Android needs the same space free. Leave it out for text only.
 
    Pick one small chat for a trial run, for example a 1:1 chat with a few hundred messages.
 
@@ -102,7 +105,7 @@ Next, restore it:
    python wamigrate.py android-push
    ```
 
-3. Open WhatsApp, verify your number, tap **Restore**, and enter the 64-digit key.
+3. Open WhatsApp and verify your number **by SMS**. If it shows "Continue as" with your photo, tap **Not you?**: signing in through a linked account skips the restore. Then tap **Restore** and enter the 64-digit key.
 4. Open the test chat and check it:
    - Messages are in the right order.
    - Each message is on the correct side.

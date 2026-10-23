@@ -303,3 +303,50 @@ def test_inspect_summary_has_no_names(ios_db, capsys):
     assert "chats: 3 (2 one-to-one, 1 groups)" in out
     assert "2023-11-14 to 2023-11-14" in out
     assert "Mum" not in out and "6591110000" not in out
+
+
+def test_media_files_become_real_media_messages(tmp_path, ios_db, android_db):
+    # The photo G2 has its file in the backup; the location A3 has none and stays a placeholder.
+    db = sqlite3.connect(ios_db)
+    db.execute("ALTER TABLE ZWAMEDIAITEM ADD COLUMN ZMEDIALOCALPATH TEXT")
+    db.execute("ALTER TABLE ZWAMEDIAITEM ADD COLUMN ZMOVIEDURATION INTEGER")
+    db.execute("UPDATE ZWAMEDIAITEM SET ZMEDIALOCALPATH='Media/120363000000000001@g.us/a/b/beach.jpg' WHERE Z_PK=1")
+    db.commit()
+    db.close()
+    media_root = tmp_path / "ios-media"
+    photo = media_root / "Message/Media/120363000000000001@g.us/a/b/beach.jpg"
+    photo.parent.mkdir(parents=True)
+    photo.write_bytes(b"jpeg bytes")
+    db = sqlite3.connect(android_db)
+    db.execute("CREATE TABLE message_media(message_row_id INTEGER PRIMARY KEY, chat_row_id INTEGER, "
+               "transferred INTEGER, file_path TEXT, file_size INTEGER, mime_type TEXT, media_name TEXT, "
+               "file_hash TEXT, media_caption TEXT)")
+    db.commit()
+    db.close()
+
+    stats = wamigrate.merge(ios_db, android_db, media_root=media_root)
+    rel = "Media/WhatsApp Images/Sent/IMG-20231114-WA0001.jpg"   # sent by me, 14 Nov 2023
+    assert stats["media_files"] == [(photo, rel)]
+    assert rows(android_db, "SELECT m.message_type, m.text_data, mm.transferred, mm.file_path, mm.file_size, "
+                            "mm.mime_type, mm.media_caption FROM message m JOIN message_media mm "
+                            "ON mm.message_row_id = m._id WHERE m.key_id='G2'") == \
+        [(1, "beach day", 1, rel, 10, "image/jpeg", "beach day")]
+    import base64, hashlib
+    assert rows(android_db, "SELECT file_hash FROM message_media") == \
+        [(base64.b64encode(hashlib.sha256(b"jpeg bytes").digest()).decode(),)]
+    assert rows(android_db, "SELECT message_type, text_data FROM message WHERE key_id='A3'") == \
+        [(0, "[Location] https://maps.google.com/?q=1.29,103.85")]
+
+    wamigrate.stage_media(stats["media_files"], tmp_path / "out" / "WhatsApp")
+    assert (tmp_path / "out" / "WhatsApp" / rel).read_bytes() == b"jpeg bytes"
+
+
+def test_document_keeps_its_name_without_clashing(tmp_path):
+    used, counters = set(), {}
+    src = tmp_path / "x.pdf"
+    names = [wamigrate.android_media_path(8, False, 0, src, "Deck", counters, used) for _ in range(2)]
+    assert names == ["Media/WhatsApp Documents/Deck.pdf", "Media/WhatsApp Documents/Deck (2).pdf"]
+    assert wamigrate.android_media_path(8, True, 0, src, "a/b: c.pdf", counters, used) == \
+        "Media/WhatsApp Documents/Sent/a_b_ c.pdf"
+    long = wamigrate.android_media_path(8, False, 0, src, "A long\ncaption " * 40, counters, used)
+    assert "\n" not in long and long.endswith(".pdf") and len(long.rsplit("/", 1)[1].encode()) <= 124

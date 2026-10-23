@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """wamigrate: move WhatsApp chat history from an iPhone into WhatsApp on Android.
 
-Prototype. Text messages only; photos, videos, voice notes etc. arrive as a
-"[Photo] caption" style line so the conversation still reads correctly.
+Prototype. Text messages, plus photos, videos, voice notes, documents, GIFs and
+stickers when ios-extract --media finds their files in the backup. Anything else
+(or a file that's missing) arrives as a "[Photo] caption" style line so the
+conversation still reads correctly.
 
 Pipeline (no root needed):
   1. ios-extract   pull ChatStorage.sqlite out of a Finder/iTunes backup
@@ -18,6 +20,7 @@ ElDavoo/wa-crypt-tools (GPL-3.0), called as a separate program.
 from __future__ import annotations
 
 import argparse
+import base64
 import getpass
 import hashlib
 import os
@@ -32,7 +35,8 @@ from pathlib import Path
 
 APPLE_EPOCH = 978307200
 WA_DOMAIN = "AppDomainGroup-group.net.whatsapp.WhatsApp.shared"
-ANDROID_DB_DIR = "/sdcard/Android/media/com.whatsapp/WhatsApp/Databases"
+ANDROID_WA_DIR = "/sdcard/Android/media/com.whatsapp/WhatsApp"
+ANDROID_DB_DIR = f"{ANDROID_WA_DIR}/Databases"
 
 # iOS ZWACHATSESSION.ZSESSIONTYPE: 0 one-to-one, 1 group, 4 community group.
 # Broadcast lists, status and channels are skipped.
@@ -51,6 +55,25 @@ PLACEHOLDERS = {
     8: "[Document]",
     11: "[GIF]",
     15: "[Sticker]",
+}
+
+# iOS types whose file comes across when it's in the backup: Android message_type, the folder
+# under WhatsApp/Media/, and the file name prefix (None keeps a document's own name).
+MEDIA_TYPES = {
+    1: (1, "WhatsApp Images", "IMG"),
+    2: (3, "WhatsApp Video", "VID"),
+    3: (2, "WhatsApp Audio", "AUD"),
+    8: (9, "WhatsApp Documents", None),
+    11: (13, "WhatsApp Animated Gifs", "VID"),
+    15: (20, "WhatsApp Stickers", "STK"),
+}
+MIME_TYPES = {
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic",
+    "mp4": "video/mp4", "mov": "video/quicktime", "opus": "audio/ogg; codecs=opus", "m4a": "audio/mp4",
+    "mp3": "audio/mpeg", "pdf": "application/pdf", "zip": "application/zip",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
 
 # Android jid.type for ordinary contacts and groups. Type 7 on s.whatsapp.net is
@@ -157,6 +180,37 @@ def extract_chatstorage(backup: Path, out: Path, password: str | None) -> Path:
     return target
 
 
+def extract_media(backup: Path, ios_db: Path, out: Path, password: str | None) -> int:
+    """Copy the photos, videos, voice notes etc. that ChatStorage points at into out/Message/Media/."""
+    ios = sqlite3.connect(f"file:{ios_db}?mode=ro", uri=True)
+    wanted = {f"Message/{p}" for (p,) in ios.execute(
+        "SELECT i.ZMEDIALOCALPATH FROM ZWAMESSAGE m JOIN ZWAMEDIAITEM i ON i.Z_PK = m.ZMEDIAITEM "
+        f"WHERE m.ZMESSAGETYPE IN ({','.join(map(str, MEDIA_TYPES))}) AND i.ZMEDIALOCALPATH != ''")}
+    ios.close()
+    with open(backup / "Manifest.plist", "rb") as f:
+        manifest = plistlib.load(f)
+
+    if manifest.get("IsEncrypted"):
+        from iphone_backup_decrypt import EncryptedBackup
+        password = secret(password, "WAMIGRATE_BACKUP_PASSWORD", out.parent / "iphone-backup-password.txt",
+                          "iPhone backup password: ")
+        eb = EncryptedBackup(backup_directory=str(backup), passphrase=password)
+        # incremental: a rerun only decrypts files that aren't there yet.
+        eb.extract_files(relative_paths_like="Message/Media/%", domain_like=WA_DOMAIN, output_folder=str(out),
+                         preserve_folders=True, incremental=True,
+                         filter_callback=lambda **f: f["relative_path"] in wanted)
+    else:
+        manifest_db = sqlite3.connect(f"file:{backup / 'Manifest.db'}?mode=ro", uri=True)
+        for file_id, rel in manifest_db.execute(
+                "SELECT fileID, relativePath FROM Files WHERE domain=? AND relativePath LIKE 'Message/Media/%'",
+                (WA_DOMAIN,)):
+            if rel in wanted:
+                (out / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(backup / file_id[:2] / file_id, out / rel)
+        manifest_db.close()
+    return sum((out / rel).is_file() for rel in wanted)
+
+
 def ios_chats(ios: sqlite3.Connection) -> list[tuple]:
     return ios.execute(
         "SELECT s.Z_PK, s.ZCONTACTJID, s.ZPARTNERNAME, s.ZSESSIONTYPE, s.ZARCHIVED, "
@@ -174,7 +228,8 @@ def chat_matches(name: str | None, jid: str, filters: list[str]) -> bool:
 
 # --------------------------------------------------------------- the merge
 
-def ios_messages(ios: sqlite3.Connection, session_pks: set[int], placeholders: bool) -> list[tuple]:
+def ios_messages(ios: sqlite3.Connection, session_pks: set[int], placeholders: bool,
+                 media_root: Path | None = None) -> list[tuple]:
     mcols = columns(ios, "ZWAMESSAGE")
     icols = columns(ios, "ZWAMEDIAITEM") if ios.execute(
         "SELECT 1 FROM sqlite_master WHERE name='ZWAMEDIAITEM'").fetchone() else set()
@@ -188,22 +243,30 @@ def ios_messages(ios: sqlite3.Connection, session_pks: set[int], placeholders: b
         return f"i.{col}" if use_items and col in icols else "NULL"
 
     join = "LEFT JOIN ZWAMEDIAITEM i ON i.Z_PK = m.ZMEDIAITEM" if use_items else ""
-    types = TEXT_TYPES + (tuple(PLACEHOLDERS) if placeholders else ())
+    types = TEXT_TYPES + (tuple(PLACEHOLDERS) if placeholders else ()) + (tuple(MEDIA_TYPES) if media_root else ())
     rows = ios.execute(
         f"SELECT m.Z_PK, m.ZCHATSESSION, m.ZISFROMME, m.ZSTANZAID, {m('ZGROUPMEMBER')}, {m('ZFROMJID')}, "
         f"m.ZMESSAGEDATE, m.ZTEXT, {m('ZSTARRED')}, m.ZMESSAGETYPE, "
-        f"{i('ZTITLE')}, {i('ZLATITUDE')}, {i('ZLONGITUDE')}, {i('ZVCARDNAME')} "
+        f"{i('ZTITLE')}, {i('ZLATITUDE')}, {i('ZLONGITUDE')}, {i('ZVCARDNAME')}, "
+        f"{i('ZMEDIALOCALPATH')}, {i('ZMOVIEDURATION')} "
         f"FROM ZWAMESSAGE m {join} "
         f"WHERE m.ZMESSAGETYPE IN ({','.join(map(str, types))}) AND m.ZMESSAGEDATE IS NOT NULL "
         "ORDER BY m.ZMESSAGEDATE, m.Z_PK").fetchall()
 
     out = []
     for (pk, sess, from_me, stanza, gm, from_jid, mdate, text, starred, mtype,
-         title, lat, lon, vcard_name) in rows:
+         title, lat, lon, vcard_name, local_path, duration) in rows:
         if sess not in session_pks:
             continue
-        if mtype in TEXT_TYPES:
+        media = None
+        if media_root and mtype in MEDIA_TYPES and local_path and (media_root / "Message" / local_path).is_file():
+            # The real file: a photo, video or GIF keeps its caption; a document's title becomes its name.
+            media = (mtype, media_root / "Message" / local_path, title, int(duration or 0))
+            body = (title or text or None) if mtype in (1, 2, 11) else None
+        elif mtype in TEXT_TYPES:
             body = text
+        elif not placeholders:
+            continue
         else:
             label = PLACEHOLDERS[mtype]
             if mtype == 5 and lat is not None and lon is not None:
@@ -213,15 +276,55 @@ def ios_messages(ios: sqlite3.Connection, session_pks: set[int], placeholders: b
             else:
                 detail = title or text
             body = f"{label} {detail}" if detail else label
-        if not body:
+        if not body and not media:
             continue
-        out.append((pk, sess, from_me, stanza, gm, from_jid, mdate, body, starred))
+        out.append((pk, sess, from_me, stanza, gm, from_jid, mdate, body, starred, media))
     return out
 
 
+def android_media_path(mtype: int, from_me: bool, ts: int, src: Path, title: str | None,
+                       counters: dict, used: set) -> str:
+    """Where WhatsApp for Android keeps this file, relative to its WhatsApp/ folder."""
+    _, folder, prefix = MEDIA_TYPES[mtype]
+    ext = src.suffix.lower()
+    sub = f"Media/{folder}/" + ("Sent/" if from_me else "")
+    if prefix is None:
+        # Titles can be whole sentences with line breaks; keep a short, safe file name.
+        name = re.sub(r"[/\\:\0]", "_", " ".join((title or "").split()))
+        if name.lower().endswith(ext):
+            name = name[:len(name) - len(ext)]
+        while len(name.encode()) > 120:
+            name = name[:-1]
+        name = (name.strip() or src.stem) + ext
+        stem, n = name[:len(name) - len(ext)], 1
+        while (sub + name).lower() in used:
+            n += 1
+            name = f"{stem} ({n}){ext}"
+    else:
+        day = datetime.fromtimestamp(ts / 1000, timezone.utc).strftime("%Y%m%d")
+        counters[sub, day] = counters.get((sub, day), 0) + 1
+        name = f"{prefix}-{day}-WA{counters[sub, day]:04d}{ext}"
+    used.add((sub + name).lower())
+    return sub + name
+
+
+def file_hash(path: Path) -> str:
+    # message_media.file_hash: base64 of the SHA-256 of the plain file.
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return base64.b64encode(h.digest()).decode()
+
+
 def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = None,
-          placeholders: bool = True) -> dict:
-    """Add iPhone chats to a decrypted Android msgstore.db, in place."""
+          placeholders: bool = True, media_root: Path | None = None) -> dict:
+    """Add iPhone chats to a decrypted Android msgstore.db, in place.
+
+    With media_root (where extract_media put the iPhone's files), messages whose file is there
+    become real media messages, and stats["media_files"] lists (iPhone file, Android path) pairs
+    for android-push to copy.
+    """
     ios = sqlite3.connect(f"file:{ios_path}?mode=ro", uri=True)
     db = sqlite3.connect(android_path)
     db.execute("PRAGMA foreign_keys=OFF")
@@ -303,7 +406,12 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
             make_usable(cur.lastrowid)
 
         member_jid = dict(ios.execute("SELECT Z_PK, ZMEMBERJID FROM ZWAGROUPMEMBER"))
-        rows = ios_messages(ios, set(chat_for_session), placeholders)
+        rows = ios_messages(ios, set(chat_for_session), placeholders, media_root)
+        media_cols = columns(db, "message_media")
+        media_files: list[tuple[Path, str]] = []
+        counters: dict = {}
+        used = {p.lower() for (p,) in cur.execute("SELECT file_path FROM message_media WHERE file_path IS NOT NULL")} \
+            if media_cols else set()
 
         # Make room: sort_id may be unique, so shift existing rows out of the way first.
         offset = len(rows) + 10
@@ -316,7 +424,7 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
         inserted = skipped = 0
         newest: dict[int, tuple[int, int]] = {}
         oldest: dict[int, int] = {}
-        for sort_id, (pk, sess, from_me, stanza, gm, from_jid, mdate, text, starred) in enumerate(rows, 1):
+        for sort_id, (pk, sess, from_me, stanza, gm, from_jid, mdate, text, starred, media) in enumerate(rows, 1):
             chat = chat_for_session[sess]
             ts = int((mdate + APPLE_EPOCH) * 1000)
             sender = 0
@@ -326,9 +434,9 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
             cur.execute(
                 "INSERT OR IGNORE INTO message(chat_row_id, from_me, key_id, sender_jid_row_id, status, broadcast, "
                 "origin, timestamp, received_timestamp, receipt_server_timestamp, message_type, text_data, starred, "
-                "lookup_tables, sort_id) VALUES (?,?,?,?,?,0,0,?,?,-1,0,?,?,0,?)",
+                "lookup_tables, sort_id) VALUES (?,?,?,?,?,0,0,?,?,-1,?,?,?,0,?)",
                 (chat, int(from_me or 0), stanza or f"MIGRATED{pk:012d}", sender, 13 if from_me else 0,
-                 ts, ts, text, int(starred or 0), sort_id))
+                 ts, ts, MEDIA_TYPES[media[0]][0] if media else 0, text, int(starred or 0), sort_id))
             if cur.rowcount == 0:
                 # Already there, e.g. merging into a backup of an earlier migration: still count it
                 # for the chat pointers below, so a rerun can repair them.
@@ -338,6 +446,24 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
             else:
                 inserted += 1
                 mid = cur.lastrowid
+                if media and media_cols:
+                    mtype, src, title, duration = media
+                    rel = android_media_path(mtype, bool(from_me), ts, src, title, counters, used)
+                    size = src.stat().st_size
+                    values = {
+                        "message_row_id": mid, "chat_row_id": chat, "transferred": 1, "file_path": rel,
+                        "file_size": size, "file_length": size, "media_duration": duration,
+                        "mime_type": MIME_TYPES.get(src.suffix.lower().lstrip("."), "application/octet-stream"),
+                        "media_name": rel.rsplit("/", 1)[1] if mtype == 8 else None, "file_hash": file_hash(src),
+                        "media_caption": text, "autotransfer_retry_enabled": 0, "has_streaming_sidecar": 0,
+                        "face_x": 0, "face_y": 0, "width": 0, "height": 0, "page_count": 0, "trim_from": 0,
+                        "trim_to": 0, "transcoded": 0, "suspicious_content": 0, "first_viewed_timestamp": 0,
+                        "is_animated_sticker": 0, "gif_attribution": 0, "media_key_domain": 0, "mute_video": 0,
+                    }
+                    values = {k: v for k, v in values.items() if k in media_cols}
+                    cur.execute(f"INSERT OR REPLACE INTO message_media({', '.join(values)}) "
+                                f"VALUES ({', '.join('?' * len(values))})", tuple(values.values()))
+                    media_files.append((src, rel))
             newest[chat] = (ts, mid)
             oldest.setdefault(chat, ts)
 
@@ -383,7 +509,7 @@ def merge(ios_path: Path, android_path: Path, chat_filters: list[str] | None = N
     db.execute("PRAGMA journal_mode=DELETE")
     db.close()
     return {"chats": len(chat_for_session), "new_chats": len(created_chats),
-            "inserted": inserted, "duplicates": skipped, "integrity": integrity}
+            "inserted": inserted, "duplicates": skipped, "integrity": integrity, "media_files": media_files}
 
 
 # ------------------------------------------------------------ crypt15 wrapper
@@ -412,7 +538,21 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def run_merge(ios_db: Path, template: Path, key: str, out: Path, chats: list[str], placeholders: bool) -> Path:
+def stage_media(media_files: list[tuple[Path, str]], staging: Path) -> None:
+    """Lay the files out as WhatsApp/<path> so android-push can copy the whole folder in one go."""
+    if staging.exists():
+        shutil.rmtree(staging)
+    for src, rel in media_files:
+        dest = staging / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.link(src, dest)  # no second copy on disk
+        except OSError:
+            shutil.copyfile(src, dest)
+
+
+def run_merge(ios_db: Path, template: Path, key: str, out: Path, chats: list[str], placeholders: bool,
+              media_root: Path | None = None) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     plain_template = out / "template.db"
     merged = out / "msgstore.db"
@@ -424,9 +564,10 @@ def run_merge(ios_db: Path, template: Path, key: str, out: Path, chats: list[str
     shutil.copyfile(plain_template, merged)
 
     print("2/4 adding iPhone chats")
-    stats = merge(ios_db, merged, chats, placeholders)
+    stats = merge(ios_db, merged, chats, placeholders, media_root)
     print(f"    chats: {stats['chats']} (new: {stats['new_chats']}), messages added: {stats['inserted']}, "
-          f"already there: {stats['duplicates']}, integrity: {stats['integrity']}")
+          f"already there: {stats['duplicates']}, media files: {len(stats['media_files'])}, "
+          f"integrity: {stats['integrity']}")
     if stats["integrity"] != "ok":
         die("the merged database failed SQLite's integrity check, so nothing was written")
 
@@ -440,6 +581,7 @@ def run_merge(ios_db: Path, template: Path, key: str, out: Path, chats: list[str
     if sha256(verify) != sha256(merged):
         die("round-trip check failed: the encrypted file does not decrypt to the merged database")
     verify.unlink()
+    stage_media(stats["media_files"], out / "WhatsApp")
     print(f"\nready: {result}")
     print(f"note: {plain_template.name} and {merged.name} in {out} hold your chats unencrypted. "
           "Delete them once you are done testing.")
@@ -472,6 +614,15 @@ def android_pull(out: Path) -> None:
 def android_push(crypt: Path) -> None:
     if not crypt.exists():
         die(f"{crypt} not found")
+    media = crypt.parent / "WhatsApp" / "Media"
+    if media.is_dir():
+        size = sum(f.stat().st_size for f in media.rglob("*") if f.is_file())
+        free = adb("shell", "df -k /sdcard | tail -1", check=False).stdout.split()
+        if len(free) > 3 and free[3].isdigit() and int(free[3]) * 1024 < size * 1.1:
+            die(f"the phone needs {size / 1e9:.1f} GB free for the media, and has {int(free[3]) / 1e6:.1f} GB")
+        print(f"copying {size / 1e9:.1f} GB of photos, videos and files to the phone...")
+        adb("shell", f"mkdir -p {ANDROID_WA_DIR}")
+        adb("push", "--sync", str(media), f"{ANDROID_WA_DIR}/")
     adb("shell", f"mkdir -p {ANDROID_DB_DIR}")
     listing = adb("shell", f"ls {ANDROID_DB_DIR}/", check=False).stdout.split()
     stale = [f for f in listing if f.startswith("msgstore") and f.endswith(".crypt15")]
@@ -494,6 +645,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--backup", type=Path, help="backup folder (default: newest one on this computer)")
     s.add_argument("--password", help="backup password if encrypted (default: work/iphone-backup-password.txt or prompt)")
     s.add_argument("--out", type=Path, default=Path("work"))
+    s.add_argument("--media", action="store_true", help="also copy photos, videos and files (into work/ios-media)")
 
     s = sub.add_parser("ios-inspect", help="list the chats in ChatStorage.sqlite")
     s.add_argument("ios_db", type=Path, nargs="?", default=Path("work/ChatStorage.sqlite"))
@@ -509,6 +661,8 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--chat", action="append", default=[],
                    help="only chats whose name or number contains this text (repeatable)")
     s.add_argument("--no-placeholders", action="store_true", help="skip media messages instead of adding [Photo] lines")
+    s.add_argument("--media", type=Path, default=Path("work/ios-media"),
+                   help="files from ios-extract --media (default: work/ios-media, used if it exists)")
     s.add_argument("--out", type=Path, default=Path("out"))
 
     s = sub.add_parser("android-push", help="put the new backup on the phone, ready to restore")
@@ -529,6 +683,9 @@ def main(argv: list[str] | None = None) -> None:
             print(f"using the newest: {backup}")
         path = extract_chatstorage(backup, a.out, a.password)
         print(f"saved {path}")
+        if a.media:
+            n = extract_media(backup, path, a.out / "ios-media", a.password)
+            print(f"saved {n} media files in {a.out / 'ios-media'}")
     elif a.cmd == "ios-inspect":
         ios = sqlite3.connect(f"file:{a.ios_db}?mode=ro", uri=True)
         chats = ios_chats(ios)
@@ -557,7 +714,8 @@ def main(argv: list[str] | None = None) -> None:
         for f in (a.ios, a.template):
             if not f.exists():
                 die(f"{f} not found")
-        run_merge(a.ios, a.template, key, a.out, a.chat, not a.no_placeholders)
+        run_merge(a.ios, a.template, key, a.out, a.chat, not a.no_placeholders,
+                  a.media if a.media.is_dir() else None)
     elif a.cmd == "android-push":
         android_push(a.crypt)
 
