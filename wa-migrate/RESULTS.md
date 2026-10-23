@@ -6,8 +6,8 @@ Counts, versions, timings and errors only. No names, phone numbers, message text
 
 - Computer OS: macOS 26.6.2 (Apple silicon, Homebrew)
 - Python: 3.14.3 (.venv)
-- Android model / version:
-- WhatsApp for Android version:
+- Android model / version: Samsung Galaxy SM-F971B / Android 17
+- WhatsApp for Android version: 2.26.41.77 (versionCode 264107700, targetSdk 36)
 - iPhone backup encrypted: yes
 
 ## Phase 0: setup
@@ -36,6 +36,12 @@ date range: 2014-07-02 to 2026-10-23
 - Test chat: none. The owner chose to skip the one-chat trial and use the full merge as the test (one fewer restore and SMS code). A failure there means stop and undo, as in Phase 3.
 
 ## Phase 2: Android template
+
+- `adb devices`: exactly one device, authorized.
+- Key file: 64 characters, no extra lines.
+- Phone's `Databases/` held two backups: `msgstore-2026-10-23.1.db.crypt15` (336069 bytes, 14:24) and `msgstore.db.crypt15` (285346 bytes, 14:30, the one made after turning on the 64-digit key). `android-pull` took the second.
+- `work/template.db.crypt15`: 285346 bytes. The undo copy is in `archive/template-2026-10-23.db.crypt15` (byte-identical).
+- The key hasn't been tested against the template yet. `merge` decrypts it first, so a wrong key shows up there before anything touches the phone.
 
 ## Phase 3: trial (one chat)
 

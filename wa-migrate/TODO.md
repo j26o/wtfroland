@@ -25,20 +25,20 @@ Run from the `wa-migrate` folder. **HUMAN** marks a step only the owner can do. 
 
 ## Phase 2: Android template backup
 
-- [ ] **HUMAN:** install WhatsApp on the Android and verify your number. Skip any restore it offers.
-- [ ] **HUMAN:** in WhatsApp, go to Settings > Chats > Chat backup:
+- [x] **HUMAN:** install WhatsApp on the Android and verify your number. Skip any restore it offers.
+- [x] **HUMAN:** in WhatsApp, go to Settings > Chats > Chat backup:
   - Set "Back up to Google Account" to **Never**.
   - Tap End-to-end encrypted backup > Turn on > **Use 64-digit encryption key instead** > Generate. Save the key in a password manager.
   - Create `work/backup-key.txt` with the 64 characters on one line.
   - Tap **Back up**.
-- [ ] **HUMAN:** turn on USB debugging. Go to Settings > About phone and tap Build number 7 times. Then go to Developer options and turn on USB debugging. Plug the phone in and accept the prompt.
-- [ ] Run `adb devices` and confirm exactly one device is listed.
-- [ ] Record the following in `RESULTS.md`:
+- [x] **HUMAN:** turn on USB debugging. Go to Settings > About phone and tap Build number 7 times. Then go to Developer options and turn on USB debugging. Plug the phone in and accept the prompt.
+- [x] Run `adb devices` and confirm exactly one device is listed.
+- [x] Record the following in `RESULTS.md`:
   - Phone model: `adb shell getprop ro.product.model`
   - Android version: `adb shell getprop ro.build.version.release`
   - WhatsApp version: `adb shell dumpsys package com.whatsapp | grep versionName`
-- [ ] Run `python wamigrate.py android-pull`. Copy `work/template.db.crypt15` into the archive folder. It's the undo point.
-- [ ] Commit and push.
+- [x] Run `python wamigrate.py android-pull`. Copy `work/template.db.crypt15` into the archive folder. It's the undo point.
+- [x] Commit and push.
 
 ## Phase 3: trial with one chat
 
